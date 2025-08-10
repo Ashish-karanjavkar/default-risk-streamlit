@@ -1,4 +1,4 @@
-# app.py — Risk Predictor Calculator (no repeated checklist)
+# app.py — Risk Predictor Calculator (shield icon + optional logo + fixed checklist)
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -21,8 +21,10 @@ except Exception:
 SEED = 42
 np.random.seed(SEED)
 
-st.set_page_config(page_title="Risk Predictor Calculator", page_icon="🧮", layout="centered")
+# 🛡️ New page icon
+st.set_page_config(page_title="Risk Predictor Calculator", page_icon="🛡️", layout="centered")
 
+# --- Pastel styling ---
 st.markdown("""
 <style>
 .stApp { background: linear-gradient(180deg, #f6fbff 0%, #fffdf7 100%); }
@@ -33,19 +35,32 @@ st.markdown("""
 .footer { text-align:center;margin-top:18px;color:#6b7280;font-size:.95rem; }
 .stButton>button { border-radius:10px;padding:.6rem 1rem; }
 .progress-wrap{ margin-top:12px; }
+.logo-wrap { display:flex; gap:12px; align-items:center; }
+.logo-wrap img { border-radius:12px; border:1px solid #edf2f7; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown(
-    """
-    <div class="title-card">
-      <h1 style="margin:0">🧮 Risk Predictor Calculator</h1>
-      <div class="subtitle">Upload LendingClub CSVs, train quickly, and download a submission file.</div>
+# --- Optional local logo.png in repo root ---
+logo_html = ""
+try:
+    from PIL import Image
+    img = Image.open("logo.png")
+    st.image(img, width=72)
+except Exception:
+    # If no logo.png, render a cute SVG badge instead
+    st.markdown("""
+    <div class="logo-wrap">
+      <div style="width:72px;height:72px;border-radius:12px;border:1px solid #edf2f7;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#E6F3FF,#FDF6E8)">
+        <span style="font-size:34px">🛡️</span>
+      </div>
+      <div>
+        <h1 style="margin:0">Risk Predictor Calculator</h1>
+        <div class="subtitle">Upload LendingClub CSVs, train, and download a submission file.</div>
+      </div>
     </div>
-    """,
-    unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
+# --- Sidebar ---
 with st.sidebar:
     st.subheader("Run settings")
     fast = st.checkbox("Fast demo (subsample + fewer rounds)", value=True)
@@ -53,6 +68,7 @@ with st.sidebar:
     sample_frac = st.slider("Training sample fraction", 0.1, 1.0, 0.5, 0.1,
                             help="Use only this fraction of training rows when Fast demo is ON.")
 
+# --- Uploaders ---
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("Upload data")
 train_file = st.file_uploader("Training CSV (must include `repaid_loan`)", type=["csv"])
@@ -60,6 +76,7 @@ test_file  = st.file_uploader("Test CSV (must include `row_id`)", type=["csv"])
 go = st.button("🚀 Train & Predict", type="primary", disabled=not (train_file and test_file))
 st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Checklist logic ---
 TASKS = [
     "Reading & validating data",
     "Preprocessing (imputing & encoding)",
@@ -95,6 +112,7 @@ def preprocess(X, X_test):
         X_test[col] = le.transform(X_test[col])
     return X, X_test
 
+# --- Status UI ---
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("Run status")
 pbar = st.progress(0, text="Waiting to start…")
@@ -102,8 +120,10 @@ status_placeholder = st.empty()
 status_placeholder.markdown(checklist_md({t:"queued" for t in TASKS}))
 st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Footer ---
 st.markdown('<div class="footer">Created by: <strong>Vivek Maharaj</strong></div>', unsafe_allow_html=True)
 
+# --- Run pipeline ---
 if go and (train_file and test_file):
     status = {t:"queued" for t in TASKS}
 
@@ -140,6 +160,7 @@ if go and (train_file and test_file):
         spw = max(1e-6, neg / max(1, pos))
         set_status("Creating train/validation split", "done")
 
+        # Speeds
         if fast:
             xgb_rounds = 300; xgb_eta = 0.1; xgb_depth = 4
             lgb_rounds = 400; mlp_max_iter = 100; mlp_layers = (64, 32)
